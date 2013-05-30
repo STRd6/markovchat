@@ -1,11 +1,8 @@
 require 'pp'
 
 class MarkovChat
-  attr_accessor :dbfile
-
-  def initialize(dbfile="markov.db")
-    @dbfile = dbfile
-    @nextwords = Hash.new
+  def initialize(data=nil)
+    @nextwords = data || Hash.new
     @nextwords_total = {}
   end
 
@@ -106,60 +103,6 @@ class MarkovChat
     pp [:nextwords, @nextwords]
     puts
   end
-
-  def tempfile
-    "#{dbfile}.temp"
-  end
-
-  def locked?
-    File.exists?(tempfile)
-  end
-
-  def save
-    if locked?
-      puts "+ Error! Can't save because #{tempfile.inspect} already exists."
-      puts "  (Either we're already saving in the background, or you crashed before and"
-      puts "   you should delete that file.)"
-
-      false
-    else
-      puts "+ Writing #{tempfile}..."
-      open(tempfile, "wb") do |f|
-        f.write Marshal.dump([@nextwords, @nextwords_total])
-      end
-
-      if File.exists?(dbfile)
-        puts "  |_ backing up #{dbfile} (to .bak)..."
-        File.rename(dbfile, "#{dbfile}.bak")
-      end
-
-      puts "  |_ moving #{tempfile} into place"
-      File.rename(tempfile, dbfile)
-
-      puts "  |_ Done!"
-      puts
-
-      true
-    end
-  end
-
-  #
-  # Save the database in the background (by forking)
-  #
-  def background_save
-    Process.detach( fork { save } )
-  end
-
-  def load
-    puts "Loading #{dbfile}..."
-    open(dbfile) do |f|
-      @nextwords, @nextwords_total = Marshal.load(f.read)
-    end
-
-    puts "  |_ Done! #{@nextwords.size} pairs..."
-    puts
-  end
-
 end
 
 
@@ -175,27 +118,17 @@ if $0 == __FILE__
   m.add_sentence("hi there you are groovy")
   m.add_sentence("hi there you are amazing")
   m.add_sentence("hi there you are a manly man")
+  m.add_sentence("you are totally loco")
+  m.add_sentence("you are stinky")
+  m.add_sentence("you are badical")
 
-  m.save
+  p [:pair_starting_with, m.pair_starting_with("hi")]
+  p [:pair_starting_with, m.pair_starting_with("hi")]
 
-  m.background_save
-
-  #puts "hit enter to continue..."; gets
-
-  n = MarkovChat.new
-  while m.locked?; sleep 0.1; end
-  puts "lock released!"
-  n.load
-  n.dump
-
-  p [:pair_starting_with, n.pair_starting_with("hi")]
-  p [:pair_starting_with, n.pair_starting_with("hi")]
-
-  p n.chat("hi", "there")
-
+  p m.chat("hi", "there")
 
   5.times do
-    p n.chat
+    p m.chat
   end
 
 end
